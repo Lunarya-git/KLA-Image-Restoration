@@ -86,17 +86,32 @@ class PairedRestorationDataset(Dataset):
     # === ADJUST HERE if the real data's naming/folder convention differs.
     # ------------------------------------------------------------------
     def _discover_pairs(self) -> list[tuple[str, str]]:
+        # Convention 1 (original): <data_root>/degraded/  and  <data_root>/gt/
         degraded_dir = os.path.join(self.data_root, "degraded")
         gt_dir = os.path.join(self.data_root, "gt")
-
         if os.path.isdir(degraded_dir) and os.path.isdir(gt_dir):
             return self._discover_from_subfolders(degraded_dir, gt_dir)
 
+        # Convention 2 (actual KLA dataset): <data_root>/train/NoisyLR/  and  <data_root>/train/GT/
+        train_noisy_dir = os.path.join(self.data_root, "train", "NoisyLR")
+        train_gt_dir = os.path.join(self.data_root, "train", "GT")
+        if os.path.isdir(train_noisy_dir) and os.path.isdir(train_gt_dir):
+            return self._discover_from_subfolders(train_noisy_dir, train_gt_dir)
+
+        # Convention 3: <data_root>/NoisyLR/  and  <data_root>/GT/  (flat)
+        noisy_dir = os.path.join(self.data_root, "NoisyLR")
+        gt_dir2 = os.path.join(self.data_root, "GT")
+        if os.path.isdir(noisy_dir) and os.path.isdir(gt_dir2):
+            return self._discover_from_subfolders(noisy_dir, gt_dir2)
+
         raise RuntimeError(
-            f"Could not find 'degraded/' and 'gt/' subfolders under '{self.data_root}'. "
+            f"Could not find a recognised data layout under '{self.data_root}'. "
+            "Tried:\n"
+            "  1. <data_root>/degraded/  and  <data_root>/gt/\n"
+            "  2. <data_root>/train/NoisyLR/  and  <data_root>/train/GT/\n"
+            "  3. <data_root>/NoisyLR/  and  <data_root>/GT/\n"
             "Edit PairedRestorationDataset._discover_pairs in dataset.py to match "
-            "the real data layout (e.g. a filename-suffix convention or per-source "
-            "subfolders) once the dataset has been inspected with inspect_data.py."
+            "the real data layout once inspected with inspect_data.py."
         )
 
     def _discover_from_subfolders(self, degraded_dir: str, gt_dir: str) -> list[tuple[str, str]]:

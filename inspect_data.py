@@ -59,15 +59,7 @@ def detect_bit_depth(arr: np.ndarray) -> str:
 
 
 def find_pairs(data_root: str) -> list[tuple[str, str]]:
-    degraded_dir = os.path.join(data_root, "degraded")
-    gt_dir = os.path.join(data_root, "gt")
-
-    if not (os.path.isdir(degraded_dir) and os.path.isdir(gt_dir)):
-        print(f"[inspect_data.py] WARNING: expected '{degraded_dir}' and '{gt_dir}' but did not find both. "
-              f"Listing top-level contents of '{data_root}' instead so you can figure out the real layout:")
-        for entry in sorted(os.listdir(data_root))[:50]:
-            print(f"    {entry}")
-        return []
+    """Auto-detect the degraded/GT folder pair from several known conventions."""
 
     def index_by_stem(folder):
         out = {}
@@ -77,10 +69,36 @@ def find_pairs(data_root: str) -> list[tuple[str, str]]:
                 out[stem] = os.path.join(folder, fname)
         return out
 
-    degraded_by_stem = index_by_stem(degraded_dir)
-    gt_by_stem = index_by_stem(gt_dir)
-    common = sorted(set(degraded_by_stem) & set(gt_by_stem))
-    return [(degraded_by_stem[s], gt_by_stem[s]) for s in common]
+    def try_pair(noisy_dir, gt_dir):
+        if os.path.isdir(noisy_dir) and os.path.isdir(gt_dir):
+            noisy_by_stem = index_by_stem(noisy_dir)
+            gt_by_stem = index_by_stem(gt_dir)
+            common = sorted(set(noisy_by_stem) & set(gt_by_stem))
+            if common:
+                print(f"[inspect_data.py] Using layout: '{noisy_dir}'  <->  '{gt_dir}'")
+                return [(noisy_by_stem[s], gt_by_stem[s]) for s in common]
+        return None
+
+    # Convention 1: <data_root>/degraded/  and  <data_root>/gt/
+    result = try_pair(os.path.join(data_root, "degraded"), os.path.join(data_root, "gt"))
+    if result is not None:
+        return result
+
+    # Convention 2 (actual KLA dataset): <data_root>/train/NoisyLR/  and  <data_root>/train/GT/
+    result = try_pair(os.path.join(data_root, "train", "NoisyLR"), os.path.join(data_root, "train", "GT"))
+    if result is not None:
+        return result
+
+    # Convention 3: <data_root>/NoisyLR/  and  <data_root>/GT/
+    result = try_pair(os.path.join(data_root, "NoisyLR"), os.path.join(data_root, "GT"))
+    if result is not None:
+        return result
+
+    print(f"[inspect_data.py] WARNING: Could not find a recognised layout under '{data_root}'.")
+    print(f"  Top-level contents:")
+    for entry in sorted(os.listdir(data_root))[:50]:
+        print(f"    {entry}")
+    return []
 
 
 def main():

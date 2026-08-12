@@ -101,5 +101,6 @@ checkpoint:
 # Logging
 # ---------------------------------------------------------------------------
 logging:
-  metrics_csv: "results/metrics.csv"
+  metrics_val_csv: "results/metrics_val.csv"
+  metrics_test_csv: "results/metrics_test.csv"
   configs_used_dir: "results/configs_used"

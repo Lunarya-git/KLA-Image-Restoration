@@ -106,11 +106,7 @@ class _TransformSwitchableDataset(torch.utils.data.Dataset):
         return item
 
 
-def append_metrics_row(csv_path: str, row: dict) -> None:
-    fieldnames = [
-        "run_name", "config_file", "epochs_trained", "val_psnr", "val_ssim",
-        "val_lpips", "inference_ms_per_img", "num_params", "timestamp",
-    ]
+def append_metrics_row(csv_path: str, row: dict, fieldnames: list[str]) -> None:
     file_exists = os.path.isfile(csv_path)
     os.makedirs(os.path.dirname(csv_path) or ".", exist_ok=True)
     with open(csv_path, "a", newline="") as f:
@@ -249,10 +245,17 @@ def main():
     # Final evaluation + logging
     # ------------------------------------------------------------------
     final_val_metrics = evaluate_batch(model, val_loader, device, compute_lpips_metric=True)
+    final_test_metrics = evaluate_batch(model, test_loader, device, compute_lpips_metric=True)
     inference_ms = measure_inference_time(model, test_loader, device, num_warmup=5)
 
     logging_cfg = config["logging"]
-    row = {
+    timestamp_str = datetime.datetime.now().isoformat(timespec="seconds")
+
+    val_fieldnames = [
+        "run_name", "config_file", "epochs_trained", "val_psnr", "val_ssim",
+        "val_lpips", "inference_ms_per_img", "num_params", "timestamp",
+    ]
+    val_row = {
         "run_name": run_name,
         "config_file": args.config,
         "epochs_trained": epochs,
@@ -261,13 +264,33 @@ def main():
         "val_lpips": round(final_val_metrics["lpips"], 4),
         "inference_ms_per_img": round(inference_ms, 4),
         "num_params": num_params,
-        "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+        "timestamp": timestamp_str,
     }
-    append_metrics_row(logging_cfg["metrics_csv"], row)
+    append_metrics_row(logging_cfg["metrics_val_csv"], val_row, val_fieldnames)
+
+    test_fieldnames = [
+        "run_name", "config_file", "epochs_trained", "test_psnr", "test_ssim",
+        "test_lpips", "inference_ms_per_img", "num_params", "timestamp",
+    ]
+    test_row = {
+        "run_name": run_name,
+        "config_file": args.config,
+        "epochs_trained": epochs,
+        "test_psnr": round(final_test_metrics["psnr"], 4),
+        "test_ssim": round(final_test_metrics["ssim"], 4),
+        "test_lpips": round(final_test_metrics["lpips"], 4),
+        "inference_ms_per_img": round(inference_ms, 4),
+        "num_params": num_params,
+        "timestamp": timestamp_str,
+    }
+    append_metrics_row(logging_cfg["metrics_test_csv"], test_row, test_fieldnames)
+
     dump_effective_config(config, run_name, logging_cfg["configs_used_dir"])
 
-    print(f"[train.py] Done. Final val metrics: {final_val_metrics}, "
-          f"inference: {inference_ms:.3f} ms/img. Logged to {logging_cfg['metrics_csv']}.")
+    print(f"[train.py] Done. Final val metrics: {final_val_metrics}\n"
+          f"                Final test metrics: {final_test_metrics}\n"
+          f"                Inference: {inference_ms:.3f} ms/img.\n"
+          f"                Logged to {logging_cfg['metrics_val_csv']} and {logging_cfg['metrics_test_csv']}.")
 
 
 if __name__ == "__main__":
