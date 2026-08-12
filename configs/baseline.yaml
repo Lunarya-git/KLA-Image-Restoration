@@ -1,0 +1,105 @@
+# Baseline experiment config for KLA Image Restoration
+# Every value used by the training pipeline lives here so a new experiment
+# can be created by copying this file and changing values only.
+# See README.md "How the config system works" for the onboarding walkthrough.
+
+run_name: baseline
+
+# ---------------------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------------------
+data:
+  data_dir: null              # overridden via --data_dir CLI flag, or set here
+  split:
+    train: 0.8
+    val: 0.1
+    test: 0.1
+    seed: 42                  # fixed split seed -- do not change between runs
+                               # you want to compare against each other
+  # File discovery: dataset.py looks for a `degraded/` and `gt/` subfolder
+  # under data_dir with matching filenames. Files may be .npy (primary format
+  # for the KLA dataset) or standard image files (.png/.tif/.tiff/.jpg).
+  # See the clearly marked "ADJUST HERE" section in dataset.py if the real
+  # data uses a different naming/folder convention.
+  extensions: [".npy", ".png", ".tif", ".tiff", ".jpg", ".jpeg"]
+
+# ---------------------------------------------------------------------------
+# Normalization (locked protocol -- fixed global scale, NOT per-image min-max)
+# ---------------------------------------------------------------------------
+normalization:
+  mode: "auto"                # auto-detects 8-bit (/255) vs 16-bit (/65535)
+                               # from source dtype; see utils.detect_bit_depth
+  clip_degraded: false        # degraded may legitimately exceed [0,1] due to
+                               # speckle noise -- do NOT clip before model input
+
+# ---------------------------------------------------------------------------
+# Augmentation (on by default)
+# ---------------------------------------------------------------------------
+augmentation:
+  enabled: true
+  horizontal_flip: true
+  vertical_flip: true
+  rotate_90: true
+
+# ---------------------------------------------------------------------------
+# Model
+# ---------------------------------------------------------------------------
+model:
+  base_channels: 64
+  num_residual_blocks: 8      # 6-8 per protocol
+  in_channels: 1               # grayscale
+  out_channels: 1
+  upscale_factor: 2
+  output_activation: "sigmoid"
+
+# ---------------------------------------------------------------------------
+# Loss (0.8 * L1 + 0.2 * (1 - SSIM) baseline, swappable via terms list)
+# ---------------------------------------------------------------------------
+loss:
+  terms:
+    - name: l1
+      weight: 0.8
+    - name: ssim
+      weight: 0.2
+  lpips:
+    enabled: false             # optional term, off by default (extra compute)
+    weight: 0.0
+
+# ---------------------------------------------------------------------------
+# Optimization (locked protocol)
+# ---------------------------------------------------------------------------
+optim:
+  name: adamw
+  lr: 0.0002
+  weight_decay: 0.0001
+  scheduler: cosine_annealing
+  epochs: 100
+
+# ---------------------------------------------------------------------------
+# Training
+# ---------------------------------------------------------------------------
+train:
+  batch_size: 16
+  num_workers: 4
+  oom_batch_size_reduction_factor: 2   # halve batch size on CUDA OOM
+  val_every_n_epochs: 1
+  comparison_grid_every_n_epochs: 5    # periodic degraded|restored|GT dump
+  num_comparison_samples: 4
+  device: "auto"               # auto-detect cuda / cpu
+
+# ---------------------------------------------------------------------------
+# Checkpointing
+# ---------------------------------------------------------------------------
+checkpoint:
+  dir: "weights"
+  best_by_ssim_filename: "best_by_ssim.pt"
+  last_filename: "last.pt"
+  # weights/final_model.pt is NEVER written automatically -- it is manually
+  # promoted by a human after reviewing results/metrics.csv.
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging:
+  metrics_csv: "results/metrics.csv"
+  configs_used_dir: "results/configs_used"

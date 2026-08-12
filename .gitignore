@@ -1,0 +1,53 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Editor / OS cruft ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Model weights ---
+# Checkpoints are NOT tracked by default (they're large, and every training
+# run produces a new best_by_ssim.pt / last.pt). Add them explicitly with
+# `git add -f` if you actually want a specific checkpoint in git history,
+# or prefer Git LFS / an external link for large files.
+weights/*.pt
+weights/*.pth
+weights/*.onnx
+
+# IMPORTANT: do NOT ignore the final promoted model -- this is the one
+# KLA's evaluate.py contract expects at weights/final_model.pt by default,
+# and the hackathon submission requires the trained weights to be present
+# in the repo (or linked, if too large for git). Keep this line below the
+# blanket ignores above so it re-includes the file.
+!weights/final_model.pt
+!weights/.gitkeep
+
+# --- Data (if a local copy ever lives inside the repo) ---
+# NOTE: intentionally NOT a blanket "*.npy" ignore -- the KLA submission
+# requires a folder of restored test-set outputs in the repo, and those may
+# be saved as .npy (evaluate.py preserves the input file format). Only raw
+# local data caches are ignored here, not generated result files.
+data/
+datasets/
+raw_data/
+
+# --- Misc generated output ---
+outputs/*
+!outputs/.gitkeep
+results/comparisons/*
+!results/comparisons/.gitkeep
